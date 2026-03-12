@@ -26,13 +26,11 @@
                     <textarea class="form-control" id="txtDescripcion" rows="2"></textarea>
                 </div>
 
-                <!-- HORA INICIO -->
                 <div class="mb-3">
                     <label for="txtHoraInicio" class="form-label">Hora inicio</label>
                     <input type="time" class="form-control" id="txtHoraInicio" required />
                 </div>
 
-                <!-- HORA FIN -->
                 <div class="mb-3">
                     <label for="txtHoraFin" class="form-label">Hora fin</label>
                     <input type="time" class="form-control" id="txtHoraFin" required />
@@ -43,7 +41,6 @@
                     <input type="color" class="form-control form-control-color" id="txtColor" value="#3788d8" />
                 </div>
 
-                <!-- FECHAS QUE SE LLENAN AUTOMÁTICAMENTE -->
                 <input type="hidden" id="txtFechaInicio" />
                 <input type="hidden" id="txtFechaFin" />
 
@@ -52,6 +49,36 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-primary" id="btnGuardar">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para ver detalle del evento -->
+<div class="modal fade" id="detalleEventoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalle del Evento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <p><strong>Título:</strong> <span id="detalleTitulo"></span></p>
+                <p><strong>Descripción:</strong> <span id="detalleDescripcion"></span></p>
+                <p><strong>Inicio:</strong> <span id="detalleInicio"></span></p>
+                <p><strong>Fin:</strong> <span id="detalleFin"></span></p>
+                <p>
+                    <strong>Color:</strong>
+                    <span id="detalleColorTexto"></span>
+                    <span id="detalleColorMuestra"
+                          style="display:inline-block; width:18px; height:18px; border-radius:50%; margin-left:8px; border:1px solid #ccc; vertical-align:middle;">
+                    </span>
+                </p>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
             </div>
         </div>
     </div>
@@ -70,14 +97,19 @@
 </div>
 
 @section Scripts {
-    <!-- jQuery -->
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
-
-    <!-- FullCalendar v6 -->
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 
     <script>
         $(document).ready(function () {
+
+            var eventoModalEl = document.getElementById('eventoModal');
+            var eventoModal = new bootstrap.Modal(eventoModalEl);
+
+            var detalleEventoModalEl = document.getElementById('detalleEventoModal');
+            var detalleEventoModal = new bootstrap.Modal(detalleEventoModalEl);
+
+            var toastExito = new bootstrap.Toast(document.getElementById('toastExito'));
 
             var calendarEl = document.getElementById('calendar');
 
@@ -94,7 +126,7 @@
                     right: 'dayGridMonth,timeGridWeek,timeGridDay'
                 },
 
-                // CARGA DE EVENTOS (GET)
+                // CARGA DE EVENTOS
                 events: function (info, successCallback, failureCallback) {
                     $.ajax({
                         url: '@Url.Action("GetEvents", "Calendar")',
@@ -111,7 +143,7 @@
                     });
                 },
 
-                // SELECCIÓN DE RANGO (con arrastre)
+                // SELECCIÓN DE RANGO
                 select: function (info) {
                     $('#txtFechaInicio').val(info.startStr);
                     $('#txtFechaFin').val(info.endStr);
@@ -137,17 +169,34 @@
                     $('#txtColor').val('#3788d8');
 
                     eventoModal.show();
+                },
+
+                // CLICK EN EVENTO
+                eventClick: function (info) {
+                    info.jsEvent.preventDefault();
+
+                    var evento = info.event;
+
+                    var titulo = evento.title || 'Sin título';
+                    var descripcion = evento.extendedProps.description || 'Sin descripción';
+                    var inicio = evento.start ? evento.start.toLocaleString() : 'Sin fecha';
+                    var fin = evento.end ? evento.end.toLocaleString() : 'Sin fecha';
+                    var color = evento.backgroundColor || evento.extendedProps.color || '#3788d8';
+
+                    $('#detalleTitulo').text(titulo);
+                    $('#detalleDescripcion').text(descripcion);
+                    $('#detalleInicio').text(inicio);
+                    $('#detalleFin').text(fin);
+                    $('#detalleColorTexto').text(color);
+                    $('#detalleColorMuestra').css('background-color', color);
+
+                    detalleEventoModal.show();
                 }
             });
 
             calendar.render();
 
-            var eventoModalEl = document.getElementById('eventoModal');
-            var eventoModal = new bootstrap.Modal(eventoModalEl);
-
-            var toastExito = new bootstrap.Toast(document.getElementById('toastExito'));
-
-            // GUARDAR EVENTO (POST)
+            // GUARDAR EVENTO
             $('#btnGuardar').on('click', function () {
 
                 var $btn = $(this);
@@ -159,7 +208,6 @@
                     return;
                 }
 
-                // Combinar FECHA + HORA
                 var inicioCompleto = $('#txtFechaInicio').val() + "T" + $('#txtHoraInicio').val();
                 var finCompleto = $('#txtFechaFin').val() + "T" + $('#txtHoraFin').val();
 

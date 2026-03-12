@@ -18,25 +18,25 @@ public class CalendarController : Controller
         return View();
     }
 
-    [HttpGet]
-    public async Task<JsonResult> GetEvents(DateTime start, DateTime end)
-    {
-        var eventos = await _eventoService.ObtenerEventosDelMesAsync(start, end);
+	[HttpGet]
+	public async Task<JsonResult> GetEvents(DateTime start, DateTime end)
+	{
+		var eventos = await _eventoService.ObtenerEventosDelMesAsync(start, end);
 
-        var resultado = eventos.Select(e => new
-        {
-            id = e.Id,
-            title = e.Titulo,
-            description = e.Descripcion,
-            start = e.FechaInicio.ToString("yyyy-MM-ddTHH:mm:ss"),
-            end = e.FechaFin.ToString("yyyy-MM-ddTHH:mm:ss"),
-            color = e.Color ?? "#3788d8"
-        });
+		var resultado = eventos.Select(e => new
+		{
+			id = e.Id,
+			title = e.Titulo,
+			description = e.Descripcion,
+			start = e.FechaInicio.ToString("yyyy-MM-ddTHH:mm:ss"),
+			end = e.FechaFin.ToString("yyyy-MM-ddTHH:mm:ss"),
+			color = e.Color ?? "#3788d8"
+		});
 
-        return Json(resultado);
-    }
+		return Json(resultado);
+	}
 
-    [HttpPost]
+	[HttpPost]
     public async Task<JsonResult> CreateEvent([FromBody] EventoAD evento)
     {
         if (!ModelState.IsValid)
@@ -54,4 +54,7 @@ public class CalendarController : Controller
             color = creado.Color ?? "#3788d8"
         });
     }
+
+
+
 }
