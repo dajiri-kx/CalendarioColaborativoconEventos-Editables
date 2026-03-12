@@ -31,3 +31,29 @@ public class EventoService : IEventoService
         return Task.FromResult(evento);
     }
 }
+public Task<bool> EditarEventoAsync(EventoAD evento)
+    {
+        var existente = _eventos.FirstOrDefault(e => e.Id == evento.Id);
+
+        if (existente == null)
+            return Task.FromResult(false);
+
+        existente.Titulo = evento.Titulo;
+        existente.Descripcion = evento.Descripcion;
+        existente.FechaInicio = evento.FechaInicio;
+        existente.FechaFin = evento.FechaFin;
+        existente.Color = evento.Color;
+
+        return Task.FromResult(true);
+    }
+
+    public Task<bool> EliminarEventoAsync(int id)
+    {
+        var existente = _eventos.FirstOrDefault(e => e.Id == id);
+
+        if (existente == null)
+            return Task.FromResult(false);
+
+        _eventos.Remove(existente);
+        return Task.FromResult(true);
+    }

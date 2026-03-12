@@ -5,12 +5,12 @@
 <h2 class="text-center mb-4">📅 Calendario Colaborativo</h2>
 <div id="calendar"></div>
 
-<!-- Modal para crear evento -->
+<!-- Modal para crear/editar evento -->
 <div class="modal fade" id="eventoModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Nuevo Evento</h5>
+                <h5 class="modal-title" id="tituloModalEvento">Nuevo Evento</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
 
@@ -41,6 +41,7 @@
                     <input type="color" class="form-control form-control-color" id="txtColor" value="#3788d8" />
                 </div>
 
+                <input type="hidden" id="txtEventoId" />
                 <input type="hidden" id="txtFechaInicio" />
                 <input type="hidden" id="txtFechaFin" />
 
@@ -78,7 +79,28 @@
             </div>
 
             <div class="modal-footer">
+                <button type="button" class="btn btn-danger" id="btnEliminar">Eliminar</button>
+                <button type="button" class="btn btn-warning" id="btnEditar">Editar</button>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para confirmar eliminación -->
+<div class="modal fade" id="confirmarEliminarModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                ¿Seguro que deseas eliminar este evento?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="btnConfirmarEliminar">Eliminar</button>
             </div>
         </div>
     </div>
@@ -109,7 +131,13 @@
             var detalleEventoModalEl = document.getElementById('detalleEventoModal');
             var detalleEventoModal = new bootstrap.Modal(detalleEventoModalEl);
 
+            var confirmarEliminarModalEl = document.getElementById('confirmarEliminarModal');
+            var confirmarEliminarModal = new bootstrap.Modal(confirmarEliminarModalEl);
+
             var toastExito = new bootstrap.Toast(document.getElementById('toastExito'));
+
+            var eventoSeleccionadoId = null;
+            var modoEdicion = false;
 
             var calendarEl = document.getElementById('calendar');
 
@@ -145,6 +173,9 @@
 
                 // SELECCIÓN DE RANGO
                 select: function (info) {
+                    modoEdicion = false;
+                    $('#tituloModalEvento').text('Nuevo Evento');
+                    $('#txtEventoId').val('');
                     $('#txtFechaInicio').val(info.startStr);
                     $('#txtFechaFin').val(info.endStr);
 
@@ -159,6 +190,9 @@
 
                 // CLICK EN DÍA VACÍO
                 dateClick: function (info) {
+                    modoEdicion = false;
+                    $('#tituloModalEvento').text('Nuevo Evento');
+                    $('#txtEventoId').val('');
                     $('#txtFechaInicio').val(info.dateStr);
                     $('#txtFechaFin').val(info.dateStr);
 
@@ -176,6 +210,7 @@
                     info.jsEvent.preventDefault();
 
                     var evento = info.event;
+                    eventoSeleccionadoId = evento.id;
 
                     var titulo = evento.title || 'Sin título';
                     var descripcion = evento.extendedProps.description || 'Sin descripción';
@@ -196,7 +231,7 @@
 
             calendar.render();
 
-            // GUARDAR EVENTO
+            // GUARDAR EVENTO (crear o editar)
             $('#btnGuardar').on('click', function () {
 
                 var $btn = $(this);
@@ -212,6 +247,7 @@
                 var finCompleto = $('#txtFechaFin').val() + "T" + $('#txtHoraFin').val();
 
                 var evento = {
+                    Id: $('#txtEventoId').val() ? parseInt($('#txtEventoId').val()) : 0,
                     Titulo: titulo,
                     Descripcion: $('#txtDescripcion').val(),
                     FechaInicio: inicioCompleto,
@@ -221,8 +257,12 @@
 
                 $btn.prop('disabled', true);
 
+                var urlAccion = modoEdicion
+                    ? '@Url.Action("UpdateEvent", "Calendar")'
+                    : '@Url.Action("CreateEvent", "Calendar")';
+
                 $.ajax({
-                    url: '@Url.Action("CreateEvent", "Calendar")',
+                    url: urlAccion,
                     type: 'POST',
                     contentType: 'application/json',
                     data: JSON.stringify(evento),
@@ -230,7 +270,12 @@
                         if (resp.success) {
                             calendar.refetchEvents();
                             eventoModal.hide();
-                            toastExito.show();
+
+                            if (modoEdicion) {
+                                alert("Evento editado correctamente.");
+                            } else {
+                                toastExito.show();
+                            }
                         } else {
                             alert(resp.message);
                         }
@@ -240,6 +285,62 @@
                     },
                     complete: function () {
                         $btn.prop('disabled', false);
+                    }
+                });
+            });
+
+            // EDITAR EVENTO
+            $('#btnEditar').on('click', function () {
+                if (!eventoSeleccionadoId) return;
+
+                var evento = calendar.getEventById(eventoSeleccionadoId);
+                if (!evento) return;
+
+                modoEdicion = true;
+                $('#tituloModalEvento').text('Editar Evento');
+
+                var fechaInicio = evento.start;
+                var fechaFin = evento.end || evento.start;
+
+                $('#txtEventoId').val(evento.id);
+                $('#txtTitulo').val(evento.title);
+                $('#txtDescripcion').val(evento.extendedProps.description || '');
+                $('#txtFechaInicio').val(fechaInicio.toISOString().slice(0, 10));
+                $('#txtFechaFin').val(fechaFin.toISOString().slice(0, 10));
+                $('#txtHoraInicio').val(fechaInicio.toTimeString().slice(0, 5));
+                $('#txtHoraFin').val(fechaFin.toTimeString().slice(0, 5));
+                $('#txtColor').val(evento.backgroundColor || '#3788d8');
+
+                detalleEventoModal.hide();
+                eventoModal.show();
+            });
+
+            // ABRIR CONFIRMACIÓN DE ELIMINAR
+            $('#btnEliminar').on('click', function () {
+                if (!eventoSeleccionadoId) return;
+                confirmarEliminarModal.show();
+            });
+
+            // CONFIRMAR ELIMINACIÓN
+            $('#btnConfirmarEliminar').on('click', function () {
+                $.ajax({
+                    url: '@Url.Action("DeleteEvent", "Calendar")',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(eventoSeleccionadoId),
+                    success: function (resp) {
+                        if (resp.success) {
+                            calendar.refetchEvents();
+                            confirmarEliminarModal.hide();
+                            detalleEventoModal.hide();
+                            eventoSeleccionadoId = null;
+                            alert("Evento eliminado correctamente.");
+                        } else {
+                            alert(resp.message);
+                        }
+                    },
+                    error: function () {
+                        alert("Error al eliminar el evento.");
                     }
                 });
             });

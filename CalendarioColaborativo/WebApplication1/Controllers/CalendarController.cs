@@ -58,3 +58,27 @@ public class CalendarController : Controller
 
 
 }
+[HttpPost]
+    public async Task<JsonResult> UpdateEvent([FromBody] EventoAD evento)
+    {
+        if (!ModelState.IsValid)
+            return Json(new { success = false, message = "Datos inválidos." });
+
+        var actualizado = await _eventoService.EditarEventoAsync(evento);
+
+        if (!actualizado)
+            return Json(new { success = false, message = "Evento no encontrado." });
+
+        return Json(new { success = true });
+    }
+
+    [HttpPost]
+    public async Task<JsonResult> DeleteEvent([FromBody] int id)
+    {
+        var eliminado = await _eventoService.EliminarEventoAsync(id);
+
+        if (!eliminado)
+            return Json(new { success = false, message = "Evento no encontrado." });
+
+        return Json(new { success = true });
+    }
