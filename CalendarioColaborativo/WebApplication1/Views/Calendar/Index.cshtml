@@ -1,0 +1,131 @@
+@{
+    ViewData["Title"] = "Calendario Colaborativo";
+}
+
+<h2 class="text-center mb-4">📅 Calendario Colaborativo</h2>
+<div id="calendar"></div>
+
+<!-- Modal para crear evento -->
+<div class="modal fade" id="eventoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nuevo Evento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="txtTitulo" class="form-label">Título</label>
+                    <input type="text" class="form-control" id="txtTitulo" required />
+                </div>
+                <div class="mb-3">
+                    <label for="txtDescripcion" class="form-label">Descripción</label>
+                    <textarea class="form-control" id="txtDescripcion" rows="2"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label for="txtColor" class="form-label">Color</label>
+                    <input type="color" class="form-control form-control-color" id="txtColor" value="#3788d8" />
+                </div>
+                <input type="hidden" id="txtFechaInicio" />
+                <input type="hidden" id="txtFechaFin" />
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btnGuardar">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- jQuery 3.x CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <!-- FullCalendar v6 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+
+    <script>
+        $(document).ready(function () {
+            var calendarEl = document.getElementById('calendar');
+
+            var calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'es',
+                firstDay: 1, // Lunes como primer día (convención hispana / ISO 8601)
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                },
+                selectable: true,
+                editable: true,
+
+                // Carga dinámica via AJAX
+                events: function (info, successCallback, failureCallback) {
+                    $.ajax({
+                        url: '@Url.Action("GetEvents", "Calendar")',
+                        type: 'GET',
+                        data: {
+                            start: info.startStr,
+                            end: info.endStr
+                        },
+                        success: function (data) {
+                            successCallback(data);
+                        },
+                        error: function () {
+                            failureCallback();
+                            alert('Error al cargar los eventos.');
+                        }
+                    });
+                },
+
+                // Al seleccionar un rango de fechas → abrir modal
+                select: function (info) {
+                    $('#txtFechaInicio').val(info.startStr);
+                    $('#txtFechaFin').val(info.endStr);
+                    $('#txtTitulo').val('');
+                    $('#txtDescripcion').val('');
+                    $('#txtColor').val('#3788d8');
+                    var modal = new bootstrap.Modal(document.getElementById('eventoModal'));
+                    modal.show();
+                }
+            });
+
+            calendar.render();
+
+            // Guardar nuevo evento via AJAX POST
+            $('#btnGuardar').on('click', function () {
+                var titulo = $('#txtTitulo').val();
+                if (!titulo) {
+                    alert('El título es obligatorio.');
+                    return;
+                }
+
+                var evento = {
+                    Titulo: titulo,
+                    Descripcion: $('#txtDescripcion').val(),
+                    FechaInicio: $('#txtFechaInicio').val(),
+                    FechaFin: $('#txtFechaFin').val(),
+                    Color: $('#txtColor').val()
+                };
+
+                $.ajax({
+                    url: '@Url.Action("CreateEvent", "Calendar")',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(evento),
+                    success: function (resp) {
+                        if (resp.success) {
+                            calendar.refetchEvents();
+                            bootstrap.Modal.getInstance(document.getElementById('eventoModal')).hide();
+                        } else {
+                            alert(resp.message);
+                        }
+                    },
+                    error: function () {
+                        alert('Error al guardar el evento.');
+                    }
+                });
+            });
+        });
+    </script>
+}
