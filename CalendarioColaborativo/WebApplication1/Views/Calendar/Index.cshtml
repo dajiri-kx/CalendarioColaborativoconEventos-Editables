@@ -13,22 +13,42 @@
                 <h5 class="modal-title">Nuevo Evento</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
+
             <div class="modal-body">
+
                 <div class="mb-3">
                     <label for="txtTitulo" class="form-label">Título</label>
                     <input type="text" class="form-control" id="txtTitulo" required />
                 </div>
+
                 <div class="mb-3">
                     <label for="txtDescripcion" class="form-label">Descripción</label>
                     <textarea class="form-control" id="txtDescripcion" rows="2"></textarea>
                 </div>
+
+                <!-- HORA INICIO -->
+                <div class="mb-3">
+                    <label for="txtHoraInicio" class="form-label">Hora inicio</label>
+                    <input type="time" class="form-control" id="txtHoraInicio" required />
+                </div>
+
+                <!-- HORA FIN -->
+                <div class="mb-3">
+                    <label for="txtHoraFin" class="form-label">Hora fin</label>
+                    <input type="time" class="form-control" id="txtHoraFin" required />
+                </div>
+
                 <div class="mb-3">
                     <label for="txtColor" class="form-label">Color</label>
                     <input type="color" class="form-control form-control-color" id="txtColor" value="#3788d8" />
                 </div>
+
+                <!-- FECHAS QUE SE LLENAN AUTOMÁTICAMENTE -->
                 <input type="hidden" id="txtFechaInicio" />
                 <input type="hidden" id="txtFechaFin" />
+
             </div>
+
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-primary" id="btnGuardar">Guardar</button>
@@ -38,28 +58,31 @@
 </div>
 
 @section Scripts {
-    <!-- jQuery 3.x CDN -->
+    <!-- jQuery -->
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
-    <!-- FullCalendar v6 CDN -->
+
+    <!-- FullCalendar v6 -->
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 
     <script>
         $(document).ready(function () {
+
             var calendarEl = document.getElementById('calendar');
 
             var calendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'dayGridMonth',
                 locale: 'es',
-                firstDay: 1, // Lunes como primer día (convención hispana / ISO 8601)
+                firstDay: 1,
+                selectable: true,
+                editable: true,
+
                 headerToolbar: {
                     left: 'prev,next today',
                     center: 'title',
                     right: 'dayGridMonth,timeGridWeek,timeGridDay'
                 },
-                selectable: true,
-                editable: true,
 
-                // Carga dinámica via AJAX
+                // CARGA DE EVENTOS (GET)
                 events: function (info, successCallback, failureCallback) {
                     $.ajax({
                         url: '@Url.Action("GetEvents", "Calendar")',
@@ -68,23 +91,40 @@
                             start: info.startStr,
                             end: info.endStr
                         },
-                        success: function (data) {
-                            successCallback(data);
-                        },
+                        success: successCallback,
                         error: function () {
+                            alert("Error al cargar los eventos.");
                             failureCallback();
-                            alert('Error al cargar los eventos.');
                         }
                     });
                 },
 
-                // Al seleccionar un rango de fechas → abrir modal
+                // SELECCIÓN DE RANGO (con arrastre)
                 select: function (info) {
                     $('#txtFechaInicio').val(info.startStr);
                     $('#txtFechaFin').val(info.endStr);
+
                     $('#txtTitulo').val('');
                     $('#txtDescripcion').val('');
+                    $('#txtHoraInicio').val("09:00");
+                    $('#txtHoraFin').val("10:00");
                     $('#txtColor').val('#3788d8');
+
+                    var modal = new bootstrap.Modal(document.getElementById('eventoModal'));
+                    modal.show();
+                },
+
+                // CLICK EN DÍA VACÍO
+                dateClick: function (info) {
+                    $('#txtFechaInicio').val(info.dateStr);
+                    $('#txtFechaFin').val(info.dateStr);
+
+                    $('#txtTitulo').val('');
+                    $('#txtDescripcion').val('');
+                    $('#txtHoraInicio').val("09:00");
+                    $('#txtHoraFin').val("10:00");
+                    $('#txtColor').val('#3788d8');
+
                     var modal = new bootstrap.Modal(document.getElementById('eventoModal'));
                     modal.show();
                 }
@@ -92,19 +132,24 @@
 
             calendar.render();
 
-            // Guardar nuevo evento via AJAX POST
+            // GUARDAR EVENTO (POST)
             $('#btnGuardar').on('click', function () {
+
                 var titulo = $('#txtTitulo').val();
                 if (!titulo) {
-                    alert('El título es obligatorio.');
+                    alert("El título es obligatorio.");
                     return;
                 }
+
+                // Combinar FECHA + HORA
+                var inicioCompleto = $('#txtFechaInicio').val() + "T" + $('#txtHoraInicio').val();
+                var finCompleto = $('#txtFechaFin').val() + "T" + $('#txtHoraFin').val();
 
                 var evento = {
                     Titulo: titulo,
                     Descripcion: $('#txtDescripcion').val(),
-                    FechaInicio: $('#txtFechaInicio').val(),
-                    FechaFin: $('#txtFechaFin').val(),
+                    FechaInicio: inicioCompleto,
+                    FechaFin: finCompleto,
                     Color: $('#txtColor').val()
                 };
 
@@ -122,7 +167,7 @@
                         }
                     },
                     error: function () {
-                        alert('Error al guardar el evento.');
+                        alert("Error al guardar el evento.");
                     }
                 });
             });
